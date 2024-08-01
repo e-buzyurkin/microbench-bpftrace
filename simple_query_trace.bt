@@ -1,0 +1,28 @@
+#!/usr/bin/env bpftrace
+
+// FIXME: path to postgres executable is hard coded
+
+// sudo bpftrace -f text -o bpf.out ./simple_query_trace.bt -c "/bin/bash -c ./run_mvn.sh"
+// sudo bpftrace -f text -o bpf.out ./simple_query_trace.bt
+
+
+BEGIN
+{
+}
+usdt:/usr/lib/postgresql/16/bin/postgres:query__start
+{
+    $time = nsecs;
+    @query_start[pid] = $time;
+}
+usdt:/usr/lib/postgresql/16/bin/postgres:query__done
+{
+    $time = nsecs;
+    if (!strcontains(str(arg0), "SET")) {
+        $query_end = $time - @query_start[pid];
+        printf("%lld\n", $query_end);
+    }
+}
+END
+{
+    clear(@query_start);
+}
